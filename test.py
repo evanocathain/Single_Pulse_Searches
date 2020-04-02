@@ -1,5 +1,15 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/python
 
+# 
+# Ainm/Name:   splanc.py
+# Údar/Author: Evan Ó Catháin/Evan Keane
+#
+# Faoi/About: Déan an script seo amshraith torranach le splancanna éagsúil istigh ann.
+#             This script makes a noisy time series with various kinds of single pulses in it.
+# 
+
+# Import necessary packages
 import numpy as np
 from numpy.random import normal
 import math as m
@@ -9,15 +19,16 @@ import argparse
 
 # Parse command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('-option', type=int, dest='option', help='choose kind of pulse (1=square, 2=Gaussian, equal area+equal FWHM, 3=Gaussian, equal area+equal height (default: 1)', default=1)
+parser.add_argument('-option', type=int, dest='option', help='choose kind of pulse (1=square, 2=Gaussian, equal area+equal FWHM, 3=Gaussian, equal area+equal height, 4=Gaussian, L^2 normalised (default: 1)', default=1)
 parser.add_argument('-height', type=float, dest='height', help='set the pulse height in units of sigma (default: 10.0)', default=10.0)
 parser.add_argument('-width', type=float, dest='width', help='set pulse duration, i.e. width, in units of time samples (default: 16.0)', default=16.0)
 parser.add_argument('-nsamps', type=int, dest='nsamps', help='set number of samples in output time series (default: 8192)', default=8192)
 parser.add_argument('-period', type=int, dest='period', help='set period in units of time samples (default: 1000)', default=1000)
 parser.add_argument('-seed', type=int, dest='seed', help='set random number generator seed explicitly (default: do not explicitly set)', default=0)
-#parser.add_argument('--version', action='version', version='%(prog)s 0.0.3')
+parser.add_argument('--version', action='version', version='%(prog)s 0.0.1')
 args = parser.parse_args()
-option = args.option         # 1 - square pulses, 2 - Gaussian pulses, equal area + FWHM, 3 - Gaussian pulses, equal area + height
+option = args.option         
+# 1 - square pulses, 2 - Gaussian pulses, equal area + FWHM, 3 - Gaussian pulses, equal area + height, 4 - Gaussian, L^2 normalised
 height = args.height
 Nsamps = args.nsamps
 period_bins = args.period
@@ -38,17 +49,17 @@ profsq = np.zeros(period_bins)
 if (option == 1):                     # This is a boxcar
     outf = open("out1.ascii", "w")
     prof = np.hstack((np.zeros(period_bins-offset_bins-width_bins/2),np.ones(width_bins),np.zeros(offset_bins+width_bins-width_bins/2)))
-if (option == 2):                     # This was Evan's approach
+elif (option == 2):                     # This was Evan's approach
     outf = open("out2.ascii", "w")
     sigma_bins = width_bins/(m.sqrt(8.0*m.log(2.0)))           #  FWHM^2 == 8*ln(2)*sigma^2
     for i in range(0,period_bins):
         prof[i] = (A/fac)*m.exp(-(i - offset_bins)**2/(2*sigma_bins**2)) 
-if (option == 3):                     # This was VG's approach
+elif (option == 3):                     # This was VG's approach
     outf = open("out3.ascii", "w")
     sigma_bins = (A/fac)*width_bins/(m.sqrt(8.0*m.log(2.0)))
     for i in range(0,period_bins):
         prof[i] = A*m.exp(-(i - offset_bins)**2/(2*sigma_bins**2)) 
-if (option == 4):                     # This is the Vincent way, \int (g(t))^2 = 1 square-normalisation
+elif (option == 4):                     # This is the Vincent way, \int (g(t))^2 = 1 square-normalisation
     outf = open("out4.ascii", "w")
     sigma_bins = width_bins/(m.sqrt(8.0*m.log(2.0)))    
     for i in range(0,period_bins):
@@ -56,6 +67,9 @@ if (option == 4):                     # This is the Vincent way, \int (g(t))^2 =
     norm = (sum(prof**2))**0.5        # Normalise by the L^2 norm
     prof /= norm                      # Normalise by the L^2 norm
     prof *= m.sqrt(width_bins)        # Scale up the Gaussian rather than scaling down the boxcar filter
+else:
+    sys.stderr.write("Pulse type "+repr(option)+" is unknown. Exiting.\n")
+    sys.exit()
 
 print "Pulse Area: ",sum(prof)
 pulsar = np.hstack(prof for i in range(nperiods))
